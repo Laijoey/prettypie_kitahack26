@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/  # Commented out - conflicts with Flutter lib folder
 lib64/
 parts/
 sdist/

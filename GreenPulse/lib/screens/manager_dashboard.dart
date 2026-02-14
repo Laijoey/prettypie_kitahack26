@@ -6,10 +6,12 @@ import '../main.dart' show themeController;
 
 class ManagerDashboard extends StatefulWidget {
   final String email;
+  final String name;
 
   const ManagerDashboard({
     super.key,
     required this.email,
+    required this.name,
   });
 
   @override
@@ -20,6 +22,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   int _selectedNavIndex = 0;
   bool _aiAutomationEnabled = true;
   bool _autoTakeoverEnabled = false;
+  String? _selectedDepartment;
 
   @override
   void initState() {
@@ -69,15 +72,15 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         children: [
           // Logo
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.asset(
                     'assets/images/logo.png',
-                    width: 40,
-                    height: 40,
+                    width: 60,
+                    height: 60,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -136,9 +139,9 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Sarah Kim',
-                        style: TextStyle(
+                      Text(
+                        widget.name,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1545,9 +1548,6 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
           const SizedBox(height: 24),
           // Department Leaderboard
           _buildDepartmentLeaderboard(),
-          const SizedBox(height: 24),
-          // Available Badges
-          _buildAvailableBadges(),
         ],
       ),
     );
@@ -1589,7 +1589,6 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
             efficiency: 96,
             points: 3400,
             stars: 3,
-            isTop: true,
             badges: [
               BadgeInfo('First Saver', '🌱', 'Achieved first energy saving milestone'),
               BadgeInfo('Week Warrior', '⚡', '7 consecutive days under target'),
@@ -1653,19 +1652,24 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     required int efficiency,
     required int points,
     required int stars,
-    bool isTop = false,
     required List<BadgeInfo> badges,
   }) {
+    final isSelected = _selectedDepartment == department;
     return InkWell(
-      onTap: () => _showDepartmentBadges(department, badges, efficiency, points, stars),
+      onTap: () {
+        setState(() {
+          _selectedDepartment = department;
+        });
+        _showDepartmentBadges(department, badges, efficiency, points, stars);
+      },
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isTop ? Colors.green.withOpacity(0.1) : const Color(0xFF0D1117),
+          color: isSelected ? Colors.green.withOpacity(0.1) : const Color(0xFF0D1117),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isTop ? Colors.green.withOpacity(0.3) : const Color(0xFF30363D),
+            color: isSelected ? Colors.green.withOpacity(0.3) : const Color(0xFF30363D),
           ),
         ),
         child: Row(
@@ -1675,11 +1679,11 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: isTop ? Colors.green.withOpacity(0.2) : const Color(0xFF21262D),
+                color: isSelected ? Colors.green.withOpacity(0.2) : const Color(0xFF21262D),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Center(
-                child: isTop
+                child: isSelected
                     ? Icon(
                         Icons.workspace_premium,
                         color: Colors.green[400],
@@ -1981,77 +1985,6 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               size: 14,
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvailableBadges() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF30363D)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Available Badges',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(child: _buildBadgeItem('First Saver', '🌱', false)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildBadgeItem('Week Warrior', '⚡', true)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildBadgeItem('Eco Champion', '🏆', false)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildBadgeItem('Green Streak', '🔥', false)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildBadgeItem('Team Leader', '👑', true)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildBadgeItem('Carbon Zero', '🌍', false)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBadgeItem(String name, String emoji, bool highlighted) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-      decoration: BoxDecoration(
-        color: highlighted ? Colors.green.withOpacity(0.1) : const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: highlighted ? Colors.green.withOpacity(0.3) : const Color(0xFF30363D),
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            emoji,
-            style: const TextStyle(fontSize: 32),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
         ],
       ),
     );

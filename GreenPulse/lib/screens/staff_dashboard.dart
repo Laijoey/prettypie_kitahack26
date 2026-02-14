@@ -4,10 +4,12 @@ import '../main.dart' show themeController;
 
 class StaffDashboard extends StatefulWidget {
   final String email;
+  final String name;
 
   const StaffDashboard({
     super.key,
     required this.email,
+    required this.name,
   });
 
   @override

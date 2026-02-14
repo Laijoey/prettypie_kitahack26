@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'staff_dashboard.dart';
 import 'manager_dashboard.dart';
+import '../services/user_storage.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -44,6 +45,29 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
+      final userStorage = UserStorage();
+      String userName = '';
+
+      if (_isSignUp) {
+        // Register new user
+        userStorage.registerUser(UserData(
+          email: _emailController.text,
+          password: _passwordController.text,
+          name: _nameController.text,
+          staffId: _staffIdController.text,
+          userType: _selectedLoginType,
+        ));
+        userName = _nameController.text;
+      } else {
+        // Try to get existing user data
+        final existingUser = userStorage.getUser(_emailController.text);
+        if (existingUser != null && existingUser.password == _passwordController.text) {
+          userName = existingUser.name;
+        } else {
+          userName = 'User';
+        }
+      }
+
       // Navigate based on login type
       if (_selectedLoginType == 'staff') {
         Navigator.pushReplacement(
@@ -51,6 +75,7 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(
             builder: (context) => StaffDashboard(
               email: _emailController.text,
+              name: userName.isNotEmpty ? userName : 'Staff',
             ),
           ),
         );
@@ -60,6 +85,7 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(
             builder: (context) => ManagerDashboard(
               email: _emailController.text,
+              name: userName.isNotEmpty ? userName : 'Manager',
             ),
           ),
         );

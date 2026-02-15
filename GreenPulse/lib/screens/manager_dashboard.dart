@@ -18,16 +18,30 @@ class ManagerDashboard extends StatefulWidget {
   State<ManagerDashboard> createState() => _ManagerDashboardState();
 }
 
-class _ManagerDashboardState extends State<ManagerDashboard> {
+class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerProviderStateMixin {
   int _selectedNavIndex = 0;
   bool _aiAutomationEnabled = true;
   bool _autoTakeoverEnabled = false;
   String? _selectedDepartment;
+  AnimationController? _blinkController;
+  Animation<double>? _blinkAnimation;
+  String _selectedEnergyView = 'All Office';
+  String _selectedHistoricalView = 'All Office';
 
   @override
   void initState() {
     super.initState();
     themeController.addListener(_onThemeChanged);
+    _initBlinkAnimation();
+  }
+
+  void _initBlinkAnimation() {
+    _blinkController?.dispose();
+    _blinkController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+    _blinkAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(_blinkController!);
   }
 
   void _onThemeChanged() {
@@ -36,6 +50,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
 
   @override
   void dispose() {
+    _blinkController?.dispose();
     themeController.removeListener(_onThemeChanged);
     super.dispose();
   }
@@ -589,57 +604,178 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Live Energy Usage (kW)',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
               Row(
                 children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.green,
+                  const Text(
+                    'Live Energy Usage (kW)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'LIVE',
-                    style: TextStyle(
-                      color: Colors.green[400],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(width: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D1117),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF30363D)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedEnergyView,
+                        isDense: true,
+                        dropdownColor: const Color(0xFF161B22),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                        icon: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: Colors.grey[400],
+                          size: 20,
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'All Office', child: Text('All Office')),
+                          DropdownMenuItem(value: 'Engineering', child: Text('Engineering')),
+                          DropdownMenuItem(value: 'Marketing', child: Text('Marketing')),
+                          DropdownMenuItem(value: 'Operations', child: Text('Operations')),
+                          DropdownMenuItem(value: 'Sales', child: Text('Sales')),
+                          DropdownMenuItem(value: 'HR', child: Text('HR')),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedEnergyView = value!;
+                          });
+                        },
+                      ),
                     ),
                   ),
                 ],
               ),
+              if (_blinkAnimation != null)
+                AnimatedBuilder(
+                  animation: _blinkAnimation!,
+                  builder: (context, child) {
+                    final animValue = _blinkAnimation?.value ?? 1.0;
+                    return Row(
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.green.withOpacity(animValue),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.green.withOpacity(animValue * 0.6),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'LIVE',
+                          style: TextStyle(
+                            color: Colors.green.withOpacity(0.7 + animValue * 0.3),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                )
+              else
+                Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'LIVE',
+                      style: TextStyle(
+                        color: Colors.green[400],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          // Legend
+          Row(
+            children: [
+              Container(
+                width: 20,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4ADE80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Actual Usage',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(width: 24),
+              Container(
+                width: 20,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22D3EE),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Predicted Baseline',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           SizedBox(
-            height: 250,
+            height: 400,
             child: LineChart(
               LineChartData(
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: true,
-                  horizontalInterval: 35,
-                  verticalInterval: 2,
+                  horizontalInterval: _getYInterval(),
+                  verticalInterval: 4,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
-                      color: const Color(0xFF30363D),
+                      color: const Color(0xFF30363D).withOpacity(0.5),
                       strokeWidth: 1,
+                      dashArray: [4, 4],
                     );
                   },
                   getDrawingVerticalLine: (value) {
                     return FlLine(
-                      color: const Color(0xFF30363D),
+                      color: const Color(0xFF30363D).withOpacity(0.3),
                       strokeWidth: 1,
+                      dashArray: [4, 4],
                     );
                   },
                 ),
@@ -652,31 +788,32 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                     sideTitles: SideTitles(showTitles: false),
                   ),
                   bottomTitles: AxisTitles(
+                    axisNameWidget: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Time (24h)',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    axisNameSize: 24,
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 30,
-                      interval: 2,
+                      reservedSize: 36,
+                      interval: 4,
                       getTitlesWidget: (value, meta) {
-                        String text = '';
-                        if (value == 1) text = '01:00';
-                        if (value == 3) text = '03:00';
-                        if (value == 5) text = '05:00';
-                        if (value == 7) text = '07:00';
-                        if (value == 9) text = '09:00';
-                        if (value == 11) text = '11:00';
-                        if (value == 13) text = '13:00';
-                        if (value == 15) text = '15:00';
-                        if (value == 17) text = '17:00';
-                        if (value == 19) text = '19:00';
-                        if (value == 21) text = '21:00';
-                        if (value == 23) text = '23:00';
+                        if (value % 4 != 0 || value < 0 || value > 24) return const SizedBox.shrink();
+                        String text = '${value.toInt().toString().padLeft(2, '0')}:00';
                         return Padding(
-                          padding: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.only(top: 10),
                           child: Text(
                             text,
                             style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 10,
+                              color: Colors.grey[500],
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         );
@@ -684,84 +821,403 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                     ),
                   ),
                   leftTitles: AxisTitles(
+                    axisNameWidget: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        'kW',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 40,
-                      interval: 35,
+                      reservedSize: 45,
+                      interval: _getYInterval(),
                       getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 10,
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Text(
+                            value.toInt().toString(),
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         );
                       },
                     ),
                   ),
                 ),
-                borderData: FlBorderData(show: false),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey[700]!, width: 1),
+                    left: BorderSide(color: Colors.grey[700]!, width: 1),
+                  ),
+                ),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (touchedSpot) => const Color(0xFF1E293B),
+                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        final isActual = spot.barIndex == 1;
+                        return LineTooltipItem(
+                          '${spot.y.toInt()} kW',
+                          TextStyle(
+                            color: isActual ? const Color(0xFF4ADE80) : const Color(0xFF22D3EE),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                  handleBuiltInTouches: true,
+                  getTouchedSpotIndicator: (barData, spotIndexes) {
+                    return spotIndexes.map((index) {
+                      return TouchedSpotIndicatorData(
+                        FlLine(
+                          color: const Color(0xFF4ADE80).withOpacity(0.4),
+                          strokeWidth: 2,
+                          dashArray: [4, 4],
+                        ),
+                        FlDotData(
+                          show: true,
+                          getDotPainter: (spot, percent, barData, index) {
+                            return FlDotCirclePainter(
+                              radius: 6,
+                              color: const Color(0xFF4ADE80),
+                              strokeWidth: 2,
+                              strokeColor: Colors.white,
+                            );
+                          },
+                        ),
+                      );
+                    }).toList();
+                  },
+                ),
                 minX: 0,
                 maxX: 24,
                 minY: 0,
-                maxY: 140,
-                lineBarsData: [
-                  // Dashed line (predicted/target)
-                  LineChartBarData(
-                    spots: const [
-                      FlSpot(1, 70),
-                      FlSpot(3, 50),
-                      FlSpot(5, 85),
-                      FlSpot(7, 95),
-                      FlSpot(9, 120),
-                      FlSpot(11, 105),
-                      FlSpot(13, 90),
-                      FlSpot(15, 100),
-                      FlSpot(17, 115),
-                      FlSpot(19, 90),
-                      FlSpot(21, 70),
-                      FlSpot(23, 80),
-                    ],
-                    isCurved: true,
-                    color: Colors.green.withOpacity(0.5),
-                    barWidth: 2,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    dashArray: [5, 5],
-                  ),
-                  // Solid line (actual)
-                  LineChartBarData(
-                    spots: const [
-                      FlSpot(1, 65),
-                      FlSpot(3, 45),
-                      FlSpot(5, 80),
-                      FlSpot(7, 100),
-                      FlSpot(9, 130),
-                      FlSpot(11, 110),
-                      FlSpot(13, 85),
-                      FlSpot(15, 95),
-                      FlSpot(17, 105),
-                      FlSpot(19, 85),
-                      FlSpot(21, 60),
-                      FlSpot(23, 75),
-                    ],
-                    isCurved: true,
-                    color: Colors.green,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.green.withOpacity(0.1),
-                    ),
-                  ),
-                ],
+                maxY: _getMaxY(),
+                lineBarsData: _getChartData(),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  double _getMaxY() {
+    switch (_selectedEnergyView) {
+      case 'All Office':
+        return 150;
+      case 'Engineering':
+        return 60;
+      case 'Marketing':
+        return 30;
+      case 'Operations':
+        return 50;
+      case 'Sales':
+        return 35;
+      case 'HR':
+        return 20;
+      default:
+        return 150;
+    }
+  }
+
+  double _getYInterval() {
+    switch (_selectedEnergyView) {
+      case 'All Office':
+        return 25;
+      case 'Engineering':
+        return 10;
+      case 'Marketing':
+        return 5;
+      case 'Operations':
+        return 10;
+      case 'Sales':
+        return 5;
+      case 'HR':
+        return 5;
+      default:
+        return 25;
+    }
+  }
+
+  List<LineChartBarData> _getChartData() {
+    switch (_selectedEnergyView) {
+      case 'Engineering':
+        return [
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 20), FlSpot(2, 15), FlSpot(4, 12),
+              FlSpot(6, 25), FlSpot(8, 40), FlSpot(10, 52),
+              FlSpot(12, 48), FlSpot(14, 42), FlSpot(16, 45),
+              FlSpot(18, 30), FlSpot(20, 18), FlSpot(22, 22), FlSpot(24, 25),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF22D3EE),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            dashArray: [8, 6],
+          ),
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 22), FlSpot(2, 12), FlSpot(4, 10),
+              FlSpot(6, 28), FlSpot(8, 45), FlSpot(10, 55),
+              FlSpot(12, 50), FlSpot(14, 38), FlSpot(16, 48),
+              FlSpot(18, 32), FlSpot(20, 15), FlSpot(22, 25), FlSpot(24, 28),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF4ADE80),
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF4ADE80).withOpacity(0.3),
+                  const Color(0xFF4ADE80).withOpacity(0.05),
+                ],
+              ),
+            ),
+          ),
+        ];
+      case 'Marketing':
+        return [
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 8), FlSpot(2, 5), FlSpot(4, 4),
+              FlSpot(6, 10), FlSpot(8, 18), FlSpot(10, 24),
+              FlSpot(12, 22), FlSpot(14, 20), FlSpot(16, 23),
+              FlSpot(18, 15), FlSpot(20, 8), FlSpot(22, 10), FlSpot(24, 9),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF22D3EE),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            dashArray: [8, 6],
+          ),
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 7), FlSpot(2, 4), FlSpot(4, 3),
+              FlSpot(6, 9), FlSpot(8, 16), FlSpot(10, 22),
+              FlSpot(12, 20), FlSpot(14, 18), FlSpot(16, 21),
+              FlSpot(18, 12), FlSpot(20, 6), FlSpot(22, 8), FlSpot(24, 8),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF4ADE80),
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF4ADE80).withOpacity(0.3),
+                  const Color(0xFF4ADE80).withOpacity(0.05),
+                ],
+              ),
+            ),
+          ),
+        ];
+      case 'Operations':
+        return [
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 15), FlSpot(2, 12), FlSpot(4, 10),
+              FlSpot(6, 18), FlSpot(8, 32), FlSpot(10, 42),
+              FlSpot(12, 38), FlSpot(14, 35), FlSpot(16, 40),
+              FlSpot(18, 25), FlSpot(20, 14), FlSpot(22, 18), FlSpot(24, 16),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF22D3EE),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            dashArray: [8, 6],
+          ),
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 18), FlSpot(2, 10), FlSpot(4, 8),
+              FlSpot(6, 22), FlSpot(8, 38), FlSpot(10, 45),
+              FlSpot(12, 42), FlSpot(14, 32), FlSpot(16, 44),
+              FlSpot(18, 28), FlSpot(20, 12), FlSpot(22, 20), FlSpot(24, 18),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF4ADE80),
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF4ADE80).withOpacity(0.3),
+                  const Color(0xFF4ADE80).withOpacity(0.05),
+                ],
+              ),
+            ),
+          ),
+        ];
+      case 'Sales':
+        return [
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 10), FlSpot(2, 7), FlSpot(4, 6),
+              FlSpot(6, 12), FlSpot(8, 22), FlSpot(10, 28),
+              FlSpot(12, 25), FlSpot(14, 24), FlSpot(16, 27),
+              FlSpot(18, 18), FlSpot(20, 10), FlSpot(22, 12), FlSpot(24, 11),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF22D3EE),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            dashArray: [8, 6],
+          ),
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 9), FlSpot(2, 6), FlSpot(4, 5),
+              FlSpot(6, 11), FlSpot(8, 20), FlSpot(10, 30),
+              FlSpot(12, 27), FlSpot(14, 22), FlSpot(16, 25),
+              FlSpot(18, 15), FlSpot(20, 8), FlSpot(22, 10), FlSpot(24, 10),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF4ADE80),
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF4ADE80).withOpacity(0.3),
+                  const Color(0xFF4ADE80).withOpacity(0.05),
+                ],
+              ),
+            ),
+          ),
+        ];
+      case 'HR':
+        return [
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 5), FlSpot(2, 3), FlSpot(4, 2),
+              FlSpot(6, 6), FlSpot(8, 12), FlSpot(10, 15),
+              FlSpot(12, 14), FlSpot(14, 13), FlSpot(16, 14),
+              FlSpot(18, 9), FlSpot(20, 5), FlSpot(22, 6), FlSpot(24, 5),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF22D3EE),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            dashArray: [8, 6],
+          ),
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 4), FlSpot(2, 2), FlSpot(4, 2),
+              FlSpot(6, 5), FlSpot(8, 10), FlSpot(10, 14),
+              FlSpot(12, 12), FlSpot(14, 11), FlSpot(16, 13),
+              FlSpot(18, 7), FlSpot(20, 4), FlSpot(22, 5), FlSpot(24, 5),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF4ADE80),
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF4ADE80).withOpacity(0.3),
+                  const Color(0xFF4ADE80).withOpacity(0.05),
+                ],
+              ),
+            ),
+          ),
+        ];
+      default: // All Office
+        return [
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 55), FlSpot(2, 40), FlSpot(4, 35),
+              FlSpot(6, 50), FlSpot(8, 85), FlSpot(10, 110),
+              FlSpot(12, 100), FlSpot(14, 95), FlSpot(16, 105),
+              FlSpot(18, 75), FlSpot(20, 50), FlSpot(22, 60), FlSpot(24, 55),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF22D3EE),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            dashArray: [8, 6],
+          ),
+          LineChartBarData(
+            spots: const [
+              FlSpot(0, 60), FlSpot(2, 35), FlSpot(4, 30),
+              FlSpot(6, 65), FlSpot(8, 95), FlSpot(10, 125),
+              FlSpot(12, 115), FlSpot(14, 90), FlSpot(16, 110),
+              FlSpot(18, 70), FlSpot(20, 45), FlSpot(22, 65), FlSpot(24, 75),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: const Color(0xFF4ADE80),
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF4ADE80).withOpacity(0.3),
+                  const Color(0xFF4ADE80).withOpacity(0.05),
+                ],
+              ),
+            ),
+            shadow: Shadow(
+              color: const Color(0xFF4ADE80).withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ),
+        ];
+    }
   }
 
   Widget _buildDepartmentProgress() {
@@ -783,7 +1239,15 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
+          Text(
+            'Shows each department\'s energy usage vs. target. Green indicates on track, orange means attention needed.',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 20),
           _buildProgressItem('Engineering', 4200, 4000, 0.87, Colors.orange),
           const SizedBox(height: 20),
           _buildProgressItem('Marketing', 1800, 2000, 0.94, Colors.green),
@@ -791,6 +1255,8 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
           _buildProgressItem('Operations', 3500, 3200, 0.82, Colors.orange),
           const SizedBox(height: 20),
           _buildProgressItem('Sales', 2100, 2200, 0.91, Colors.green),
+          const SizedBox(height: 20),
+          _buildProgressItem('HR', 1200, 1300, 0.96, Colors.green),
         ],
       ),
     );
@@ -1056,6 +1522,15 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   }
 
   Widget _buildDepartmentEnergyTargets() {
+    final departmentData = [
+      {'name': 'Engineering', 'current': 4500.0, 'target': 4000.0},
+      {'name': 'Marketing', 'current': 2200.0, 'target': 2000.0},
+      {'name': 'Operations', 'current': 3800.0, 'target': 3200.0},
+      {'name': 'Sales', 'current': 2100.0, 'target': 2200.0},
+      {'name': 'HR', 'current': 800.0, 'target': 1000.0},
+    ];
+    const double maxValue = 5000;
+    
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -1075,100 +1550,55 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
             ),
           ),
           const SizedBox(height: 24),
-          SizedBox(
-            height: 250,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: 8000,
-                barTouchData: BarTouchData(
-                  enabled: true,
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (group) => const Color(0xFF21262D),
-                    tooltipPadding: const EdgeInsets.all(8),
-                    tooltipMargin: 8,
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final departments = ['Engineering', 'Marketing', 'Operations', 'Sales', 'HR'];
-                      return BarTooltipItem(
-                        '${departments[group.x]}\n${rod.toY.toInt()} kWh',
-                        const TextStyle(color: Colors.white, fontSize: 12),
-                      );
-                    },
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        const departments = ['Engineering', 'Marketing', 'Operations', 'Sales', 'HR'];
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            departments[value.toInt()],
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 11,
-                            ),
-                          ),
-                        );
-                      },
-                      reservedSize: 32,
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 50,
-                      interval: 1500,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 10,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 1500,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: const Color(0xFF30363D),
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                borderData: FlBorderData(show: false),
-                barGroups: [
-                  _buildBarGroup(0, 4500, 4000),
-                  _buildBarGroup(1, 2200, 2000),
-                  _buildBarGroup(2, 3800, 3200),
-                  _buildBarGroup(3, 2100, 2200),
-                  _buildBarGroup(4, 800, 1000),
-                ],
-              ),
+          // Horizontal bars
+          ...departmentData.map((dept) => _buildHorizontalBar(
+            name: dept['name'] as String,
+            current: dept['current'] as double,
+            target: dept['target'] as double,
+            maxValue: maxValue,
+          )),
+          const SizedBox(height: 16),
+          // X-axis labels
+          Padding(
+            padding: const EdgeInsets.only(left: 100),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('0', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                Text('1000', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                Text('2000', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                Text('3000', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                Text('4000', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                Text('5000 kWh', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          // Legend
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildLegendItem('Current Usage', Colors.green),
-              const SizedBox(width: 24),
-              _buildLegendItem('Target', Colors.green.withOpacity(0.3)),
+              const SizedBox(width: 16),
+              _buildLegendItem('Over Target', Colors.orange),
+              const SizedBox(width: 16),
+              Row(
+                children: [
+                  Container(
+                    width: 2,
+                    height: 12,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Target',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ],
@@ -1176,25 +1606,142 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     );
   }
 
-  BarChartGroupData _buildBarGroup(int x, double current, double target) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: current,
-          color: current > target ? Colors.orange : Colors.green,
-          width: 20,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            topRight: Radius.circular(4),
+  Widget _buildHorizontalBar({
+    required String name,
+    required double current,
+    required double target,
+    required double maxValue,
+  }) {
+    final isOverTarget = current > target;
+    final barColor = isOverTarget ? Colors.orange : Colors.green;
+    final currentPercent = (current / maxValue).clamp(0.0, 1.0);
+    final targetPercent = (target / maxValue).clamp(0.0, 1.0);
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Tooltip(
+          decoration: BoxDecoration(
+            color: const Color(0xFF21262D),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF30363D)),
           ),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: target,
-            color: Colors.green.withOpacity(0.2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          richMessage: TextSpan(
+            children: [
+              TextSpan(
+                text: '$name\n',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              TextSpan(
+                text: 'Actual: ',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+              ),
+              TextSpan(
+                text: '${current.toInt()} kWh\n',
+                style: TextStyle(
+                  color: barColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              TextSpan(
+                text: 'Target: ',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+              ),
+              TextSpan(
+                text: '${target.toInt()} kWh',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Department name
+              SizedBox(
+                width: 100,
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              // Bar container
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final barWidth = constraints.maxWidth;
+                    return Container(
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1117),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Stack(
+                        children: [
+                          // Current usage bar
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 500),
+                            width: barWidth * currentPercent,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: barColor,
+                              borderRadius: BorderRadius.circular(4),
+                              gradient: LinearGradient(
+                                colors: [
+                                  barColor,
+                                  barColor.withOpacity(0.8),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Target line indicator
+                          Positioned(
+                            left: barWidth * targetPercent - 1,
+                            top: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 3,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -1222,6 +1769,81 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   }
 
   Widget _buildRoomOccupancyMap() {
+    final rooms = [
+      {
+        'code': 'A1',
+        'name': 'Conference Room A',
+        'status': RoomStatus.occupied,
+        'occupancy': '8/12',
+        'energy': 18,
+        'lightsOn': true,
+        'acOn': true,
+        'hasCamera': true,
+        'hasLight': true,
+        'hasHvac': true,
+      },
+      {
+        'code': 'A2',
+        'name': 'Open Office A',
+        'status': RoomStatus.occupied,
+        'occupancy': '24/40',
+        'energy': 32,
+        'lightsOn': true,
+        'acOn': true,
+        'hasCamera': true,
+        'hasLight': true,
+        'hasHvac': true,
+      },
+      {
+        'code': 'B1',
+        'name': 'Server Room',
+        'status': RoomStatus.empty,
+        'occupancy': '0/4',
+        'energy': 45,
+        'lightsOn': false,
+        'acOn': true,
+        'hasCamera': true,
+        'hasLight': false,
+        'hasHvac': true,
+      },
+      {
+        'code': 'B2',
+        'name': 'Break Room',
+        'status': RoomStatus.waste,
+        'occupancy': '0/20',
+        'energy': 12,
+        'lightsOn': true,
+        'acOn': true,
+        'hasCamera': true,
+        'hasLight': true,
+        'hasHvac': true,
+      },
+      {
+        'code': 'C1',
+        'name': 'Lab Space',
+        'status': RoomStatus.occupied,
+        'occupancy': '6/15',
+        'energy': 28,
+        'lightsOn': true,
+        'acOn': true,
+        'hasCamera': true,
+        'hasLight': true,
+        'hasHvac': true,
+      },
+      {
+        'code': 'C2',
+        'name': 'Training Room',
+        'status': RoomStatus.waste,
+        'occupancy': '0/30',
+        'energy': 22,
+        'lightsOn': true,
+        'acOn': true,
+        'hasCamera': true,
+        'hasLight': true,
+        'hasHvac': true,
+      },
+    ];
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -1268,11 +1890,549 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
             ],
           ),
           const SizedBox(height: 24),
-          SizedBox(
-            height: 300,
-            child: _buildFloorPlan(),
+          // Room cards grid
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 12,
+              childAspectRatio: 2.2,
+            ),
+            itemCount: rooms.length,
+            itemBuilder: (context, index) {
+              final room = rooms[index];
+              return _buildRoomCard(room);
+            },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRoomCard(Map<String, dynamic> room) {
+    final status = room['status'] as RoomStatus;
+    Color borderColor;
+    Color bgColor;
+    
+    switch (status) {
+      case RoomStatus.occupied:
+        borderColor = Colors.green;
+        bgColor = Colors.green.withOpacity(0.08);
+        break;
+      case RoomStatus.empty:
+        borderColor = const Color(0xFF30363D);
+        bgColor = const Color(0xFF0D1117);
+        break;
+      case RoomStatus.waste:
+        borderColor = Colors.red;
+        bgColor = Colors.red.withOpacity(0.08);
+        break;
+    }
+
+    return GestureDetector(
+      onTap: () => _showRoomDetailsDialog(room),
+      child: Stack(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor, width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top row: Code and icons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      room['code'] as String,
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        if (room['hasCamera'] == true)
+                          Icon(Icons.videocam_outlined, color: Colors.grey[600], size: 14),
+                        if (room['hasLight'] == true) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.lightbulb_outline, color: Colors.grey[600], size: 14),
+                        ],
+                        if (room['hasHvac'] == true) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.tune, color: Colors.grey[600], size: 14),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // Room name
+                Text(
+                  room['name'] as String,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                // Status and occupancy
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      status == RoomStatus.occupied ? 'OCCUPIED' : 'EMPTY',
+                      style: TextStyle(
+                        color: status == RoomStatus.occupied ? Colors.green : Colors.grey[500],
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.people_outline, color: Colors.grey[500], size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          room['occupancy'] as String,
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                // Device badges
+                Row(
+                  children: [
+                    if (room['lightsOn'] == true)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: status == RoomStatus.waste 
+                              ? Colors.orange.withOpacity(0.2) 
+                              : Colors.green.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: status == RoomStatus.waste 
+                                ? Colors.orange.withOpacity(0.5) 
+                                : Colors.green.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.lightbulb,
+                              size: 10,
+                              color: status == RoomStatus.waste ? Colors.orange : Colors.green,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Lights ON',
+                              style: TextStyle(
+                                color: status == RoomStatus.waste ? Colors.orange : Colors.green,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (room['acOn'] == true) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: status == RoomStatus.waste && status != RoomStatus.occupied
+                              ? Colors.orange.withOpacity(0.2)
+                              : Colors.grey.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: status == RoomStatus.waste && status != RoomStatus.occupied
+                                ? Colors.orange.withOpacity(0.5)
+                                : Colors.grey.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.ac_unit,
+                              size: 10,
+                              color: status == RoomStatus.waste ? Colors.orange : Colors.grey[400],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'AC ON',
+                              style: TextStyle(
+                                color: status == RoomStatus.waste ? Colors.orange : Colors.grey[400],
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Waste indicator dot
+          if (status == RoomStatus.waste)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF161B22), width: 2),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showRoomDetailsDialog(Map<String, dynamic> room) {
+    final status = room['status'] as RoomStatus;
+    Color statusColor;
+    String aiComment;
+    
+    switch (status) {
+      case RoomStatus.occupied:
+        statusColor = Colors.green;
+        aiComment = 'Energy usage is within normal range for current occupancy level.';
+        break;
+      case RoomStatus.empty:
+        statusColor = Colors.grey;
+        aiComment = 'Room is unoccupied. Systems are in standby mode.';
+        break;
+      case RoomStatus.waste:
+        statusColor = Colors.red;
+        aiComment = 'High energy draw relative to occupancy — monitor closely';
+        break;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: const Color(0xFF161B22),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF30363D)),
+        ),
+        child: Container(
+          width: 380,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with close button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        room['code'] as String,
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        room['name'] as String,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close, color: Colors.grey[400]),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Occupancy and Energy row
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1117),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF30363D)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Occupancy',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            status == RoomStatus.occupied ? 'Occupied' : 'Empty',
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            room['occupancy'] as String,
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1117),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF30363D)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Energy Usage',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${room['energy']} kW',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Estimated',
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Device Status
+              Text(
+                'DEVICE STATUS',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Device chips
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildDeviceChip('HVAC', room['hasHvac'] == true),
+                  _buildDeviceChip('Lights', room['hasLight'] == true),
+                  _buildDeviceChip('Workstations', true),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Active device badges
+              Row(
+                children: [
+                  if (room['lightsOn'] == true)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lightbulb, size: 14, color: Colors.yellow[600]),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Lights ON',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (room['acOn'] == true) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.ac_unit, size: 14, color: Colors.blue[300]),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'AC ON',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 20),
+              // AI Comment
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: status == RoomStatus.waste 
+                      ? Colors.orange.withOpacity(0.1) 
+                      : Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: status == RoomStatus.waste 
+                        ? Colors.orange.withOpacity(0.3) 
+                        : Colors.green.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.smart_toy,
+                      color: status == RoomStatus.waste ? Colors.orange : Colors.green,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'AI COMMENT',
+                            style: TextStyle(
+                              color: status == RoomStatus.waste ? Colors.orange : Colors.green,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            aiComment,
+                            style: TextStyle(
+                              color: Colors.grey[300],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Vision AI monitoring
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1117),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.videocam_outlined, color: Colors.grey[500], size: 18),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Vision AI monitoring active',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeviceChip(String label, bool isActive) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF30363D)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.grey[300],
+          fontSize: 12,
+        ),
       ),
     );
   }
@@ -1297,221 +2457,6 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFloorPlan() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF0D1117),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF30363D)),
-          ),
-          child: Stack(
-            children: [
-              // Grid lines
-              CustomPaint(
-                size: Size(constraints.maxWidth, 300),
-                painter: GridPainter(),
-              ),
-              // Rooms
-              Positioned(
-                left: 20,
-                top: 20,
-                child: _buildRoom('Conf A', 120, 80, RoomStatus.occupied),
-              ),
-              Positioned(
-                left: 160,
-                top: 20,
-                child: _buildRoom('Conf B', 100, 80, RoomStatus.waste),
-              ),
-              Positioned(
-                left: 280,
-                top: 20,
-                child: _buildRoom('Meeting 1', 90, 80, RoomStatus.empty),
-              ),
-              Positioned(
-                left: 390,
-                top: 20,
-                child: _buildRoom('Meeting 2', 90, 80, RoomStatus.occupied),
-              ),
-              Positioned(
-                left: 20,
-                top: 120,
-                child: _buildRoom('Open Office A', 200, 100, RoomStatus.occupied),
-              ),
-              Positioned(
-                left: 240,
-                top: 120,
-                child: _buildRoom('Open Office B', 160, 100, RoomStatus.occupied),
-              ),
-              Positioned(
-                left: 420,
-                top: 120,
-                child: _buildRoom('Break Room', 80, 100, RoomStatus.empty),
-              ),
-              Positioned(
-                left: 20,
-                top: 240,
-                child: _buildRoom('Server Room', 100, 50, RoomStatus.waste),
-              ),
-              Positioned(
-                left: 140,
-                top: 240,
-                child: _buildRoom('Storage', 80, 50, RoomStatus.empty),
-              ),
-              Positioned(
-                left: 240,
-                top: 240,
-                child: _buildRoom('Kitchen', 100, 50, RoomStatus.occupied),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRoom(String name, double width, double height, RoomStatus status) {
-    Color borderColor;
-    Color bgColor;
-    
-    switch (status) {
-      case RoomStatus.occupied:
-        borderColor = Colors.green;
-        bgColor = Colors.green.withOpacity(0.1);
-        break;
-      case RoomStatus.empty:
-        borderColor = Colors.grey;
-        bgColor = Colors.grey.withOpacity(0.1);
-        break;
-      case RoomStatus.waste:
-        borderColor = Colors.red;
-        bgColor = Colors.red.withOpacity(0.15);
-        break;
-    }
-    
-    return GestureDetector(
-      onTap: () {
-        _showRoomDetails(name, status);
-      },
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: borderColor, width: 2),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              if (status == RoomStatus.waste) ...[
-                const SizedBox(height: 4),
-                Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.red[400],
-                  size: 14,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showRoomDetails(String roomName, RoomStatus status) {
-    String statusText;
-    String details;
-    Color statusColor;
-    
-    switch (status) {
-      case RoomStatus.occupied:
-        statusText = 'Occupied';
-        statusColor = Colors.green;
-        details = 'Room is currently in use. Energy usage is optimized.';
-        break;
-      case RoomStatus.empty:
-        statusText = 'Empty';
-        statusColor = Colors.grey;
-        details = 'Room is unoccupied. All systems are in standby mode.';
-        break;
-      case RoomStatus.waste:
-        statusText = 'Energy Waste Detected';
-        statusColor = Colors.red;
-        details = 'Room is unoccupied but systems are running at full capacity. Consider automated shutdown.';
-        break;
-    }
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF161B22),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Color(0xFF30363D)),
-        ),
-        title: Text(
-          roomName,
-          style: const TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: statusColor,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              details,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Close',
-              style: TextStyle(color: Colors.green),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -2159,13 +3104,55 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Historical Energy Trends (kWh)',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Historical Energy Trends (kWh)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1117),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF30363D)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedHistoricalView,
+                    isDense: true,
+                    dropdownColor: const Color(0xFF161B22),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey[400],
+                      size: 20,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'All Office', child: Text('All Office')),
+                      DropdownMenuItem(value: 'Engineering', child: Text('Engineering')),
+                      DropdownMenuItem(value: 'Marketing', child: Text('Marketing')),
+                      DropdownMenuItem(value: 'Operations', child: Text('Operations')),
+                      DropdownMenuItem(value: 'Sales', child: Text('Sales')),
+                      DropdownMenuItem(value: 'HR', child: Text('HR')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedHistoricalView = value!;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -2173,7 +3160,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: 26000,
+                maxY: _getHistoricalMaxY(),
                 barTouchData: BarTouchData(
                   enabled: true,
                   touchTooltipData: BarTouchTooltipData(
@@ -2217,7 +3204,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 50,
-                      interval: 6500,
+                      interval: _getHistoricalInterval(),
                       getTitlesWidget: (value, meta) {
                         return Text(
                           value.toInt().toString(),
@@ -2239,7 +3226,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: 6500,
+                  horizontalInterval: _getHistoricalInterval(),
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
                       color: const Color(0xFF30363D),
@@ -2248,21 +3235,116 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                   },
                 ),
                 borderData: FlBorderData(show: false),
-                barGroups: [
-                  _buildHistoryBarGroup(0, 22000),
-                  _buildHistoryBarGroup(1, 21000),
-                  _buildHistoryBarGroup(2, 21500),
-                  _buildHistoryBarGroup(3, 18000),
-                  _buildHistoryBarGroup(4, 17500),
-                  _buildHistoryBarGroup(5, 17000),
-                  _buildHistoryBarGroup(6, 18500),
-                ],
+                barGroups: _getHistoricalBarData(),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  double _getHistoricalMaxY() {
+    switch (_selectedHistoricalView) {
+      case 'All Office':
+        return 26000;
+      case 'Engineering':
+        return 8000;
+      case 'Marketing':
+        return 4000;
+      case 'Operations':
+        return 6000;
+      case 'Sales':
+        return 5000;
+      case 'HR':
+        return 2500;
+      default:
+        return 26000;
+    }
+  }
+
+  double _getHistoricalInterval() {
+    switch (_selectedHistoricalView) {
+      case 'All Office':
+        return 6500;
+      case 'Engineering':
+        return 2000;
+      case 'Marketing':
+        return 1000;
+      case 'Operations':
+        return 1500;
+      case 'Sales':
+        return 1250;
+      case 'HR':
+        return 625;
+      default:
+        return 6500;
+    }
+  }
+
+  List<BarChartGroupData> _getHistoricalBarData() {
+    switch (_selectedHistoricalView) {
+      case 'Engineering':
+        return [
+          _buildHistoryBarGroup(0, 6500),
+          _buildHistoryBarGroup(1, 6800),
+          _buildHistoryBarGroup(2, 7000),
+          _buildHistoryBarGroup(3, 5800),
+          _buildHistoryBarGroup(4, 5500),
+          _buildHistoryBarGroup(5, 5200),
+          _buildHistoryBarGroup(6, 5600),
+        ];
+      case 'Marketing':
+        return [
+          _buildHistoryBarGroup(0, 3200),
+          _buildHistoryBarGroup(1, 3000),
+          _buildHistoryBarGroup(2, 2900),
+          _buildHistoryBarGroup(3, 2500),
+          _buildHistoryBarGroup(4, 2400),
+          _buildHistoryBarGroup(5, 2600),
+          _buildHistoryBarGroup(6, 2700),
+        ];
+      case 'Operations':
+        return [
+          _buildHistoryBarGroup(0, 5000),
+          _buildHistoryBarGroup(1, 4800),
+          _buildHistoryBarGroup(2, 5200),
+          _buildHistoryBarGroup(3, 4200),
+          _buildHistoryBarGroup(4, 4000),
+          _buildHistoryBarGroup(5, 3900),
+          _buildHistoryBarGroup(6, 4300),
+        ];
+      case 'Sales':
+        return [
+          _buildHistoryBarGroup(0, 4000),
+          _buildHistoryBarGroup(1, 3800),
+          _buildHistoryBarGroup(2, 3900),
+          _buildHistoryBarGroup(3, 3200),
+          _buildHistoryBarGroup(4, 3100),
+          _buildHistoryBarGroup(5, 3000),
+          _buildHistoryBarGroup(6, 3400),
+        ];
+      case 'HR':
+        return [
+          _buildHistoryBarGroup(0, 2000),
+          _buildHistoryBarGroup(1, 1900),
+          _buildHistoryBarGroup(2, 1850),
+          _buildHistoryBarGroup(3, 1600),
+          _buildHistoryBarGroup(4, 1550),
+          _buildHistoryBarGroup(5, 1500),
+          _buildHistoryBarGroup(6, 1700),
+        ];
+      default: // All Office
+        return [
+          _buildHistoryBarGroup(0, 22000),
+          _buildHistoryBarGroup(1, 21000),
+          _buildHistoryBarGroup(2, 21500),
+          _buildHistoryBarGroup(3, 18000),
+          _buildHistoryBarGroup(4, 17500),
+          _buildHistoryBarGroup(5, 17000),
+          _buildHistoryBarGroup(6, 18500),
+        ];
+    }
   }
 
   BarChartGroupData _buildHistoryBarGroup(int x, double value) {
@@ -2376,6 +3458,53 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                   ),
                 ),
                 borderData: FlBorderData(show: false),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (touchedSpot) => const Color(0xFF1E293B),
+                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    getTooltipItems: (touchedSpots) {
+                      const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
+                      return touchedSpots.map((spot) {
+                        final monthIndex = spot.x.toInt();
+                        final month = monthIndex >= 0 && monthIndex < months.length 
+                            ? months[monthIndex] 
+                            : '';
+                        return LineTooltipItem(
+                          '$month\nCost: \$${spot.y.toInt()}',
+                          const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                  handleBuiltInTouches: true,
+                  getTouchedSpotIndicator: (barData, spotIndexes) {
+                    return spotIndexes.map((index) {
+                      return TouchedSpotIndicatorData(
+                        FlLine(
+                          color: Colors.green.withOpacity(0.5),
+                          strokeWidth: 2,
+                          dashArray: [4, 4],
+                        ),
+                        FlDotData(
+                          show: true,
+                          getDotPainter: (spot, percent, barData, index) {
+                            return FlDotCirclePainter(
+                              radius: 6,
+                              color: Colors.green,
+                              strokeWidth: 2,
+                              strokeColor: Colors.white,
+                            );
+                          },
+                        ),
+                      );
+                    }).toList();
+                  },
+                ),
                 minX: 0,
                 maxX: 6,
                 minY: 0,
@@ -2441,12 +3570,15 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
           ),
           const SizedBox(height: 24),
           SizedBox(
-            height: 300,
-            child: CustomPaint(
-              size: const Size(double.infinity, 300),
-              painter: RadarChartPainter(
-                data: [0.87, 0.94, 0.82, 0.91, 0.96], // Engineering, Marketing, Operations, Sales, HR
-                labels: ['Engineering', 'Marketing', 'Operations', 'Sales', 'HR'],
+            height: 350,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: CustomPaint(
+                size: const Size(double.infinity, 330),
+                painter: RadarChartPainter(
+                  data: [0.87, 0.94, 0.82, 0.91, 0.96], // Engineering, Marketing, Operations, Sales, HR
+                  labels: ['Engineering', 'Marketing', 'Operations', 'Sales', 'HR'],
+                ),
               ),
             ),
           ),
@@ -2645,7 +3777,7 @@ class RadarChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width * 0.35;
+    final radius = (size.height / 2) - 40; // Use height-based radius with margin for labels
     final angleStep = (2 * pi) / data.length;
     
     // Draw grid lines (pentagon shapes)

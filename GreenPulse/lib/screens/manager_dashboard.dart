@@ -440,7 +440,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
           child: _buildStatCard(
             icon: Icons.attach_money,
             iconColor: Colors.grey,
-            value: '\$1,488',
+            value: 'RM1,488',
             unit: '',
             label: 'Total Cost',
             sublabel: 'Projected this month',
@@ -1457,21 +1457,21 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
           _buildSuggestionItem(
             priority: 'HIGH',
             suggestion: 'Shift heavy computing tasks to off-peak hours (22:00-06:00) to reduce peak demand charges by ~18%',
-            savings: '\$340/month',
+            savings: 'RM340/month',
             priorityColor: Colors.red,
           ),
           const SizedBox(height: 16),
           _buildSuggestionItem(
             priority: 'HIGH',
             suggestion: 'Enable adaptive HVAC scheduling based on room occupancy — detected 35% idle runtime',
-            savings: '\$220/month',
+            savings: 'RM220/month',
             priorityColor: Colors.red,
           ),
           const SizedBox(height: 16),
           _buildSuggestionItem(
             priority: 'MEDIUM',
             suggestion: 'Replace fluorescent lighting in zones C1-C4 with smart LED — ROI in 8 months',
-            savings: '\$150/month',
+            savings: 'RM150/month',
             priorityColor: Colors.orange,
           ),
         ],
@@ -3025,7 +3025,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
           child: _buildReportStatCard(
             icon: Icons.attach_money,
             iconColor: Colors.green,
-            value: '\$1280',
+            value: 'RM1280',
             label: 'Cost Saved',
           ),
         ),
@@ -3384,7 +3384,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
               ),
               const SizedBox(width: 8),
               const Text(
-                'Cost & Prediction Report (\$)',
+                'Cost & Prediction Report (RM)',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -3471,7 +3471,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                             ? months[monthIndex] 
                             : '';
                         return LineTooltipItem(
-                          '$month\nCost: \$${spot.y.toInt()}',
+                          '$month\nCost: RM${spot.y.toInt()}',
                           const TextStyle(
                             color: Colors.green,
                             fontWeight: FontWeight.w600,
@@ -3632,17 +3632,17 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
           _buildAICommentItem(
             icon: Icons.flag,
             iconColor: Colors.purple,
-            text: 'At current trajectory, organization will meet Q2 sustainability goals 2 weeks ahead of schedule. Projected annual savings: \$15,360.',
+            text: 'At current trajectory, organization will meet Q2 sustainability goals 2 weeks ahead of schedule. Projected annual savings: RM15,360.',
           ),
           const SizedBox(height: 12),
           _buildAISuggestionItem(
             text: 'Shift heavy computing tasks to off-peak hours (22:00-06:00) to reduce peak demand charges by ~18%',
-            savings: '\$340/month',
+            savings: 'RM340/month',
           ),
           const SizedBox(height: 12),
           _buildAISuggestionItem(
             text: 'Enable adaptive HVAC scheduling based on room occupancy — detected 35% idle runtime',
-            savings: '\$220/month',
+            savings: 'RM220/month',
           ),
         ],
       ),

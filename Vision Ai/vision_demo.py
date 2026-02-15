@@ -91,7 +91,7 @@ def analyze_room():
 
 
 def analyze_camera_local(camera_index=0):
-    print("🎥 Starting local camera detection (press 'q' to quit)...")
+    print("🎥 Starting local camera detection (press 'Ctrl + C' to quit)...")
 
     cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():

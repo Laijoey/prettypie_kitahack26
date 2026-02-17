@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'login_page.dart';
 import '../main.dart' show themeController;
+import '../services/vision_ai_service.dart';
 
 class ManagerDashboard extends StatefulWidget {
   final String email;
@@ -27,12 +28,24 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
   Animation<double>? _blinkAnimation;
   String _selectedEnergyView = 'All Office';
   String _selectedHistoricalView = 'All Office';
+  final VisionAIService _visionService = VisionAIService();
+  List<RoomData> _liveRooms = [];
+  List<AlertData> _liveAlerts = [];
+
 
   @override
   void initState() {
     super.initState();
     themeController.addListener(_onThemeChanged);
     _initBlinkAnimation();
+
+    _visionService.startPolling();
+    _visionService.roomsStream.listen((rooms) {
+      setState(() => _liveRooms = rooms);
+    });
+    _visionService.alertsStream.listen((alerts) {
+      setState(() => _liveAlerts = alerts);
+    });
   }
 
   void _initBlinkAnimation() {
@@ -52,6 +65,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
   void dispose() {
     _blinkController?.dispose();
     themeController.removeListener(_onThemeChanged);
+    _visionService.dispose();
     super.dispose();
   }
 
@@ -291,7 +305,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
             children: [
               Expanded(
                 flex: 2,
-                child: _buildAIAnomalyAlerts(),
+                child: buildLiveAIAlerts(_liveAlerts),
               ),
               const SizedBox(width: 24),
               Expanded(
@@ -305,7 +319,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
           _buildDepartmentEnergyTargets(),
           const SizedBox(height: 24),
           // Room Occupancy & Energy Waste Map
-          _buildRoomOccupancyMap(),
+          buildLiveRoomOccupancyMap(_liveRooms),
         ],
       ),
     );
@@ -3733,6 +3747,385 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
       ),
     );
   }
+
+  Widget buildLiveRoomOccupancyMap(List<RoomData> liveRooms) {
+  // Fall back to the static room list if live data hasn't loaded yet
+  final rooms = liveRooms.isNotEmpty ? liveRooms : _staticRooms();
+
+  return Container(
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: const Color(0xFF161B22),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFF30363D)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // --- Header ---
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Room Occupancy & Energy Waste Map',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      'Vision AI Live  •  Updated every 5s',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                    const SizedBox(width: 8),
+                    // Show how many rooms have live Vision AI data
+                    if (liveRooms.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.green.withOpacity(0.4)),
+                        ),
+                        child: Text(
+                          '${liveRooms.where((r) => r.isLiveData).length} live',
+                          style: const TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                _buildMapLegendItem('Occupied', Colors.green),
+                const SizedBox(width: 16),
+                _buildMapLegendItem('Empty', Colors.grey),
+                const SizedBox(width: 16),
+                _buildMapLegendItem('Waste', Colors.red),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // --- Room grid ---
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 12,
+            childAspectRatio: 2.2,
+          ),
+          itemCount: rooms.length,
+          itemBuilder: (context, index) {
+            return _buildLiveRoomCard(rooms[index]);
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+// ==========================================
+// LIVE ROOM CARD  (replaces _buildRoomCard)
+// ==========================================
+Widget _buildLiveRoomCard(RoomData room) {
+  Color borderColor;
+  Color bgColor;
+
+  switch (room.status) {
+    case RoomStatus.occupied:
+      borderColor = Colors.green;
+      bgColor = Colors.green.withOpacity(0.08);
+      break;
+    case RoomStatus.waste:
+      borderColor = Colors.red;
+      bgColor = Colors.red.withOpacity(0.08);
+      break;
+    default:
+      borderColor = const Color(0xFF30363D);
+      bgColor = const Color(0xFF0D1117);
+  }
+
+  return GestureDetector(
+    onTap: () {/* keep your existing _showRoomDetailsDialog logic */},
+    child: Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor, width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top row: code + Vision AI badge
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    room.code,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                  // Show LIVE badge only for Vision AI rooms
+                  if (room.isLiveData)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        '● AI',
+                        style: TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+
+              // Room name
+              Text(
+                room.name,
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 2),
+
+              // Status + occupancy
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    room.status == RoomStatus.occupied ? 'OCCUPIED' : 'EMPTY',
+                    style: TextStyle(
+                      color: room.status == RoomStatus.occupied ? Colors.green : Colors.grey[500],
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Icon(Icons.people_outline, color: Colors.grey[500], size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        room.occupancyDisplay,
+                        style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const Spacer(),
+
+              // Confidence bar (only for Vision AI rooms)
+              if (room.isLiveData) ...[
+                Row(
+                  children: [
+                    Text(
+                      'AI: ${(room.confidence * 100).toInt()}%',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 9),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: room.confidence,
+                          backgroundColor: const Color(0xFF30363D),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            room.confidence > 0.8 ? Colors.green : Colors.orange,
+                          ),
+                          minHeight: 3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                // Device badges for static rooms
+                Row(
+                  children: [
+                    if (room.lightsOn)
+                      _miniDeviceBadge('Lights ON', Icons.lightbulb, room.status == RoomStatus.waste),
+                    if (room.acOn) ...[
+                      const SizedBox(width: 6),
+                      _miniDeviceBadge('AC ON', Icons.ac_unit, room.status == RoomStatus.waste),
+                    ],
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        // Waste warning dot
+        if (room.status == RoomStatus.waste)
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF161B22), width: 2),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+Widget _miniDeviceBadge(String label, IconData icon, bool isWaste) {
+  final color = isWaste ? Colors.orange : Colors.green;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.15),
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(color: color.withOpacity(0.4)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 9, color: color),
+        const SizedBox(width: 3),
+        Text(label, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.w600)),
+      ],
+    ),
+  );
+}
+
+// ==========================================
+// LIVE ALERTS BUILDER
+// Uses _liveAlerts list streamed from VisionAIService
+// Replace your _buildAIAnomalyAlerts() with this:
+// ==========================================
+Widget buildLiveAIAlerts(List<AlertData> liveAlerts) {
+  // Merge Vision AI alerts on top of static hardcoded alerts
+  final staticAlerts = [
+    AlertData(type: 'CRITICAL', roomId: 'A', roomName: 'Building A Floor 3',
+        message: 'Unusual energy spike — 240% above baseline', time: '14:23'),
+    AlertData(type: 'INFO', roomId: 'MKT', roomName: 'Marketing',
+        message: 'Consistent after-hours usage — consider scheduled shutdown', time: '09:15'),
+  ];
+
+  final allAlerts = [...liveAlerts, ...staticAlerts].take(5).toList();
+
+  return Container(
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: const Color(0xFF161B22),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFF30363D)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('AI Anomaly Alerts',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            if (liveAlerts.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${liveAlerts.length} new',
+                  style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        ...allAlerts.map((alert) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildAlertFromData(alert),
+        )),
+      ],
+    ),
+  );
+}
+
+Widget _buildAlertFromData(AlertData alert) {
+  Color color;
+  IconData icon;
+  switch (alert.type) {
+    case 'CRITICAL':
+      color = Colors.red;
+      icon = Icons.error_outline;
+      break;
+    case 'WARNING':
+      color = Colors.orange;
+      icon = Icons.warning_amber_rounded;
+      break;
+    default:
+      color = Colors.green;
+      icon = Icons.info_outline;
+  }
+
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withOpacity(0.3)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(alert.type, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                Text(alert.time, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                if (alert.roomName.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Text('• ${alert.roomName}', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                ],
+              ]),
+              const SizedBox(height: 4),
+              Text(alert.message, style: const TextStyle(color: Colors.white, fontSize: 13)),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// ==========================================
+// STATIC FALLBACK ROOMS (used before API loads)
+// ==========================================
+List<RoomData> _staticRooms() {
+  return [
+    RoomData(code: 'A1', name: 'Conference Room A', occupancy: 8,  capacity: 12, status: RoomStatus.occupied, lightsOn: true,  acOn: true,  energy: 18, confidence: 0.0, source: 'static'),
+    RoomData(code: 'A2', name: 'Open Office A',     occupancy: 24, capacity: 40, status: RoomStatus.occupied, lightsOn: true,  acOn: true,  energy: 32, confidence: 0.0, source: 'static'),
+    RoomData(code: 'B1', name: 'Server Room',       occupancy: 0,  capacity: 4,  status: RoomStatus.empty,    lightsOn: false, acOn: true,  energy: 45, confidence: 0.0, source: 'static'),
+    RoomData(code: 'B2', name: 'Break Room',        occupancy: 0,  capacity: 20, status: RoomStatus.waste,    lightsOn: true,  acOn: true,  energy: 12, confidence: 0.0, source: 'static'),
+    RoomData(code: 'C1', name: 'Lab Space',         occupancy: 6,  capacity: 15, status: RoomStatus.occupied, lightsOn: true,  acOn: true,  energy: 28, confidence: 0.0, source: 'static'),
+    RoomData(code: 'C2', name: 'Training Room',     occupancy: 0,  capacity: 30, status: RoomStatus.waste,    lightsOn: true,  acOn: true,  energy: 22, confidence: 0.0, source: 'static'),
+  ];
+}
 }
 
 // Badge Info class
@@ -3743,8 +4136,6 @@ class BadgeInfo {
 
   BadgeInfo(this.name, this.emoji, this.description);
 }
-
-enum RoomStatus { occupied, empty, waste }
 
 class GridPainter extends CustomPainter {
   @override

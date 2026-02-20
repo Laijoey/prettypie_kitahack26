@@ -1,7 +1,6 @@
-<<<<<<< HEAD
 # prettypie_kitahack26
 AI-powered smart building energy monitoring, prediction, and sustainability dashboard using Google technologies.
-=======
+
 # energy_monitor_app
 
 A new Flutter project.
@@ -18,4 +17,4 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
->>>>>>> ce392e491eb121c4460bfb4349b658717249ceaf
+ ce392e491eb121c4460bfb4349b658717249ceaf

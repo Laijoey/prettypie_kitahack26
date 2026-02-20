@@ -48,7 +48,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PrettyPie',
+      title: 'GreenPulse',
       debugShowCheckedModeBanner: false,
       themeMode: themeController.themeMode,
       theme: ThemeData(

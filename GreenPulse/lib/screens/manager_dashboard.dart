@@ -1,6 +1,8 @@
 import 'dart:math' show cos, sin, pi;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:http/http.dart' as http;
 import 'login_page.dart';
 import '../main.dart' show themeController;
 import '../services/vision_ai_service.dart';
@@ -73,6 +75,62 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),
+    );
+  }
+
+  // ─────────────────────────────────────────
+  // CAMERA VIEW FUNCTIONALITY
+  // ─────────────────────────────────────────
+
+  // Change IP to match your vision_ai_service.dart setting
+  static const String _serverBase = 'http://localhost:5000';
+
+  // Fetches snapshot from Python server
+  Future<Map<String, dynamic>?> _fetchRoomSnapshot(String roomId) async {
+    try {
+      final response = await http
+          .get(Uri.parse('$_serverBase/snapshot/$roomId'))
+          .timeout(const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+    } catch (e) {
+      debugPrint('[Snapshot] Error fetching $roomId: $e');
+    }
+    return null;
+  }
+
+  // Opens the camera view popup when eye icon is tapped
+  void _showCameraViewDialog(String roomCode, String roomName, bool isLive) {
+    showDialog(
+      context: context,
+      builder: (_) => _CameraViewDialog(
+        roomCode: roomCode,
+        roomName: roomName,
+        isLiveCamera: isLive,
+        fetchSnapshot: _fetchRoomSnapshot,
+      ),
+    );
+  }
+
+  // Eye icon button — add this wherever you want the button
+  // Pass: roomCode e.g. "B2", roomName, isLive (true only for B2)
+  Widget _buildEyeButton(String roomCode, String roomName, bool isLive) {
+    return GestureDetector(
+      onTap: () => _showCameraViewDialog(roomCode, roomName, isLive),
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        ),
+        child: Icon(
+          Icons.visibility_outlined,
+          color: isLive ? Colors.green[400] : Colors.grey[400],
+          size: 15,
+        ),
+      ),
     );
   }
 
@@ -1983,6 +2041,12 @@ class _ManagerDashboardState extends State<ManagerDashboard> with SingleTickerPr
                           const SizedBox(width: 6),
                           Icon(Icons.tune, color: Colors.grey[600], size: 14),
                         ],
+                        const SizedBox(width: 6),
+                        _buildEyeButton(
+                          room['code'] as String,
+                          room['name'] as String,
+                          room['code'] == 'B2', // Only B2 is live
+                        ),
                       ],
                     ),
                   ],
@@ -3867,7 +3931,7 @@ Widget _buildLiveRoomCard(RoomData room) {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top row: code + Vision AI badge
+              // Top row: code + Vision AI badge + Eye button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -3875,19 +3939,29 @@ Widget _buildLiveRoomCard(RoomData room) {
                     room.code,
                     style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w500),
                   ),
-                  // Show LIVE badge only for Vision AI rooms
-                  if (room.isLiveData)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
+                  Row(
+                    children: [
+                      // Show LIVE badge only for Vision AI rooms
+                      if (room.isLiveData)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '● AI',
+                            style: TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      const SizedBox(width: 6),
+                      _buildEyeButton(
+                        room.code,
+                        room.name,
+                        room.code == 'B2', // Only B2 is live
                       ),
-                      child: const Text(
-                        '● AI',
-                        style: TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -4272,4 +4346,464 @@ class RadarChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─────────────────────────────────────────
+// CAMERA VIEW DIALOG
+// ─────────────────────────────────────────
+
+class _CameraViewDialog extends StatefulWidget {
+  final String roomCode;
+  final String roomName;
+  final bool isLiveCamera;
+  final Future<Map<String, dynamic>?> Function(String) fetchSnapshot;
+
+  const _CameraViewDialog({
+    required this.roomCode,
+    required this.roomName,
+    required this.isLiveCamera,
+    required this.fetchSnapshot,
+  });
+
+  @override
+  State<_CameraViewDialog> createState() => _CameraViewDialogState();
+}
+
+class _CameraViewDialogState extends State<_CameraViewDialog> {
+  bool _isLoading = true;
+  String? _imageBase64;
+  String? _timestamp;
+  String? _errorMessage;
+  int _occupancy = 0;
+  int _capacity = 0;
+  String _status = '';
+  double _confidence = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSnapshot();
+  }
+
+  Future<void> _loadSnapshot() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _imageBase64 = null;
+    });
+
+    final data = await widget.fetchSnapshot(widget.roomCode);
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+      if (data != null && data['image_base64'] != null) {
+        _imageBase64   = data['image_base64'];
+        _timestamp     = data['timestamp'];
+        _occupancy     = data['occupancy'] ?? 0;
+        _capacity      = data['capacity'] ?? 0;
+        _status        = data['status'] ?? '';
+        _confidence    = (data['confidence'] ?? 0.0).toDouble();
+      } else {
+        _errorMessage =
+            'Could not load camera feed.\n\nMake sure server_v3.py is running\non your computer.';
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Color statusColor = _status == 'occupied'
+        ? Colors.green
+        : _status == 'waste'
+            ? Colors.orange
+            : Colors.grey;
+
+    return Dialog(
+      backgroundColor: const Color(0xFF161B22),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFF30363D)),
+      ),
+      child: Container(
+        width: 520,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            // ── Header ──────────────────────────────
+            Row(
+              children: [
+                Icon(
+                  Icons.videocam,
+                  color: widget.isLiveCamera ? Colors.green : Colors.grey[400],
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.roomName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          // LIVE / SIMULATED badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: widget.isLiveCamera
+                                  ? Colors.green.withOpacity(0.2)
+                                  : Colors.grey.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.only(right: 5),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: widget.isLiveCamera ? Colors.green : Colors.grey,
+                                  ),
+                                ),
+                                Text(
+                                  widget.isLiveCamera ? 'LIVE WEBCAM' : 'SIMULATED FEED',
+                                  style: TextStyle(
+                                    color: widget.isLiveCamera ? Colors.green : Colors.grey[400],
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_timestamp != null) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              _timestamp!,
+                              style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Refresh
+                IconButton(
+                  onPressed: _loadSnapshot,
+                  icon: Icon(Icons.refresh, color: Colors.grey[400], size: 20),
+                  tooltip: 'Refresh',
+                ),
+                // Close
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: Colors.grey[400], size: 20),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Camera Image ─────────────────────────
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: double.infinity,
+                height: 270,
+                color: const Color(0xFF0D1117),
+                child: _buildImageArea(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── AI Analysis Stats ────────────────────
+            if (!_isLoading && _errorMessage == null)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1117),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF30363D)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _statBlock(
+                      icon: Icons.people_outline,
+                      label: 'People',
+                      value: '$_occupancy/$_capacity',
+                      color: Colors.white,
+                    ),
+                    _divider(),
+                    _statBlock(
+                      icon: Icons.circle,
+                      label: 'Status',
+                      value: _status.toUpperCase(),
+                      color: statusColor,
+                    ),
+                    // Show confidence only for live room
+                    if (widget.isLiveCamera) ...[
+                      _divider(),
+                      _statBlock(
+                        icon: Icons.psychology_outlined,
+                        label: 'AI Confidence',
+                        value: '${(_confidence * 100).toInt()}%',
+                        color: _confidence > 0.8 ? Colors.green : Colors.orange,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+            // ── Disclaimer for simulated rooms ───────
+            if (!widget.isLiveCamera && !_isLoading && _errorMessage == null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.07),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.withOpacity(0.25)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber[600], size: 15),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Simulated feed. In production, a real IP camera '
+                        'would be mounted in ${widget.roomName}.',
+                        style: TextStyle(color: Colors.amber[700], fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Image area: loading / error / image ──
+  Widget _buildImageArea() {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Colors.green, strokeWidth: 2),
+            SizedBox(height: 14),
+            Text('Loading camera feed...', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.videocam_off_outlined, color: Colors.grey[700], size: 42),
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage!,
+              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // For simulated rooms (all except B2), draw a fake crowd image
+    // that visually matches the detected occupancy instead of
+    // relying on a real camera frame.
+    if (!widget.isLiveCamera) {
+      return _buildSimulatedOccupancyImage();
+    }
+
+    // Show live image with HUD overlay for B2
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.memory(base64Decode(_imageBase64!), fit: BoxFit.cover),
+
+        // Top-left: LIVE / CAM label
+        Positioned(
+          top: 10,
+          left: 10,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.65),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  margin: const EdgeInsets.only(right: 5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.isLiveCamera ? Colors.red : Colors.grey,
+                  ),
+                ),
+                Text(
+                  widget.isLiveCamera ? 'LIVE' : 'CAM ${widget.roomCode}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Bottom-right: timestamp
+        if (_timestamp != null)
+          Positioned(
+            bottom: 10,
+            right: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.65),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                _timestamp!,
+                style: const TextStyle(color: Colors.white, fontSize: 10),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Simple fake image for non-B2 rooms that reflects people detected.
+  Widget _buildSimulatedOccupancyImage() {
+    final String? assetPath = _assetForSimulatedRoom(widget.roomCode);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (assetPath != null)
+          Image.asset(
+            assetPath,
+            fit: BoxFit.cover,
+          )
+        else
+          Container(
+            color: const Color(0xFF020617),
+          ),
+        Positioned(
+          top: 10,
+          left: 10,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.65),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  margin: const EdgeInsets.only(right: 5),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey,
+                  ),
+                ),
+                Text(
+                  'SIM ${widget.roomCode}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 10,
+          right: 10,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.65),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '$_occupancy people detected',
+              style: const TextStyle(color: Colors.white, fontSize: 10),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String? _assetForSimulatedRoom(String roomCode) {
+    switch (roomCode) {
+      case 'A1':
+        return 'assets/images/conference_A1.jpg';
+      case 'A2':
+        return 'assets/images/office_A2.jpg';
+      case 'B1':
+        return 'assets/images/server_B1.jpg';
+      case 'C1':
+        return 'assets/images/lab_C1.jpg';
+      case 'C2':
+        return 'assets/images/training_C2.jpg';
+      default:
+        return null;
+    }
+  }
+
+  Widget _statBlock({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 5),
+        Text(value, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+      ],
+    );
+  }
+
+  Widget _divider() {
+    return Container(width: 1, height: 40, color: const Color(0xFF30363D));
+  }
 }

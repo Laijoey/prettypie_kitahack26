@@ -1,29 +1,22 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';
+
 import '../pages/dashboard/dashboard_page.dart';
 import '../pages/room_monitor/room_occupancy_page.dart';
 import '../pages/gamification/gamification_page.dart';
 import '../pages/reports/report_page.dart';
 import '../widgets/sidebar.dart';
 
-class StaffDashboard extends StatefulWidget {
-  final String email;
-  final String name;
-
-  const StaffDashboard({
-    super.key,
-    required this.email,
-    required this.name,
-  });
+class MainLayout extends StatefulWidget {
+  const MainLayout({super.key});
 
   @override
-  State<StaffDashboard> createState() => _StaffDashboardState();
+  State<MainLayout> createState() => _MainLayoutState();
 }
 
-class _StaffDashboardState extends State<StaffDashboard> {
+class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
+  final List<Widget> _pages =  [
     DashboardPage(),
     RoomOccupancyPage(),
     GamificationPage(),
@@ -36,13 +29,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
     });
   }
 
-  void _logout() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,7 +37,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
           Sidebar(
             selectedIndex: _selectedIndex,
             onItemSelected: _onMenuSelected,
-            onLogout: _logout,
           ),
 
           /// MAIN CONTENT

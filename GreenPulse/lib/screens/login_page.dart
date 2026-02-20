@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'staff_dashboard.dart';
 import 'manager_dashboard.dart';
+import 'staff_dashboard.dart';
 import '../services/user_storage.dart';
+import '../main.dart' show themeController;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,7 +23,18 @@ class _LoginPageState extends State<LoginPage> {
   bool _isSignUp = false; // Toggle between sign in and sign up
 
   @override
+  void initState() {
+    super.initState();
+    themeController.addListener(_onThemeChanged);
+  }
+
+  void _onThemeChanged() {
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    themeController.removeListener(_onThemeChanged);
     _nameController.dispose();
     _staffIdController.dispose();
     _emailController.dispose();
@@ -95,14 +107,41 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = themeController.isDarkMode;
+    final backgroundColor = isDarkMode ? const Color(0xFF0D1117) : Colors.grey[100]!;
+    final cardColor = isDarkMode ? const Color(0xFF161B22) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black87;
+    final subtitleColor = isDarkMode ? Colors.grey[400]! : Colors.grey[600]!;
+    final borderColor = isDarkMode ? const Color(0xFF30363D) : Colors.grey[300]!;
+    final inputFillColor = isDarkMode ? const Color(0xFF21262D) : Colors.white;
+    
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      backgroundColor: backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          // Theme Toggle Button
+          IconButton(
+            icon: Icon(
+              isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              color: isDarkMode ? Colors.amber : Colors.grey[700]!,
+            ),
+            onPressed: () {
+              themeController.toggleTheme();
+            },
+            tooltip: isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           // Grid background
           CustomPaint(
             size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
-            painter: GridBackgroundPainter(),
+            painter: GridBackgroundPainter(
+              gridColor: isDarkMode ? const Color(0xFF30363D).withOpacity(0.2) : Colors.grey[300]!.withOpacity(0.2),
+            ),
           ),
           // Main content
           SafeArea(
@@ -124,12 +163,12 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 24),
                     // App Name
-                    const Text(
+                    Text(
                       'GreenPulse',
                       style: TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -147,9 +186,16 @@ class _LoginPageState extends State<LoginPage> {
                       width: 420,
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF161B22),
+                        color: cardColor,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF30363D)),
+                        border: Border.all(color: borderColor),
+                        boxShadow: isDarkMode ? null : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Form(
                         key: _formKey,
@@ -158,10 +204,10 @@ class _LoginPageState extends State<LoginPage> {
                           children: [
                             Text(
                               _isSignUp ? 'Create a new account' : 'Sign in to your account',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                                color: textColor,
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -169,7 +215,7 @@ class _LoginPageState extends State<LoginPage> {
                             // Login Type Toggle
                             Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFF21262D),
+                                color: isDarkMode ? const Color(0xFF21262D) : Colors.grey[200]!,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               padding: const EdgeInsets.all(4),
@@ -196,8 +242,8 @@ class _LoginPageState extends State<LoginPage> {
                                             Icon(
                                               Icons.person_outline,
                                               color: _selectedLoginType == 'staff'
-                                                  ? const Color(0xFF0D1117)
-                                                  : Colors.grey[400],
+                                                  ? (isDarkMode ? const Color(0xFF0D1117) : Colors.white)
+                                                  : subtitleColor,
                                               size: 18,
                                             ),
                                             const SizedBox(width: 8),
@@ -206,8 +252,8 @@ class _LoginPageState extends State<LoginPage> {
                                               style: TextStyle(
                                                 fontWeight: FontWeight.w600,
                                                 color: _selectedLoginType == 'staff'
-                                                    ? const Color(0xFF0D1117)
-                                                    : Colors.grey[400],
+                                                    ? (isDarkMode ? const Color(0xFF0D1117) : Colors.white)
+                                                    : subtitleColor,
                                               ),
                                             ),
                                           ],
@@ -236,8 +282,8 @@ class _LoginPageState extends State<LoginPage> {
                                             Icon(
                                               Icons.shield_outlined,
                                               color: _selectedLoginType == 'manager'
-                                                  ? const Color(0xFF0D1117)
-                                                  : Colors.grey[400],
+                                                  ? (isDarkMode ? const Color(0xFF0D1117) : Colors.white)
+                                                  : subtitleColor,
                                               size: 18,
                                             ),
                                             const SizedBox(width: 8),
@@ -246,8 +292,8 @@ class _LoginPageState extends State<LoginPage> {
                                               style: TextStyle(
                                                 fontWeight: FontWeight.w600,
                                                 color: _selectedLoginType == 'manager'
-                                                    ? const Color(0xFF0D1117)
-                                                    : Colors.grey[400],
+                                                    ? (isDarkMode ? const Color(0xFF0D1117) : Colors.white)
+                                                    : subtitleColor,
                                               ),
                                             ),
                                           ],
@@ -265,7 +311,7 @@ class _LoginPageState extends State<LoginPage> {
                               Text(
                                 'Full Name',
                                 style: TextStyle(
-                                  color: Colors.grey[400],
+                                  color: subtitleColor,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -273,24 +319,24 @@ class _LoginPageState extends State<LoginPage> {
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _nameController,
-                                style: const TextStyle(color: Colors.white),
+                                style: TextStyle(color: textColor),
                                 decoration: InputDecoration(
                                   hintText: 'Enter your full name',
-                                  hintStyle: TextStyle(color: Colors.grey[600]),
+                                  hintStyle: TextStyle(color: subtitleColor),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(color: Color(0xFF30363D)),
+                                    borderSide: BorderSide(color: borderColor),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(color: Color(0xFF30363D)),
+                                    borderSide: BorderSide(color: borderColor),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                     borderSide: const BorderSide(color: Colors.green, width: 2),
                                   ),
                                   filled: true,
-                                  fillColor: const Color(0xFF21262D),
+                                  fillColor: inputFillColor,
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 ),
                                 validator: (value) {
@@ -306,7 +352,7 @@ class _LoginPageState extends State<LoginPage> {
                               Text(
                                 'Staff ID',
                                 style: TextStyle(
-                                  color: Colors.grey[400],
+                                  color: subtitleColor,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -314,24 +360,24 @@ class _LoginPageState extends State<LoginPage> {
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _staffIdController,
-                                style: const TextStyle(color: Colors.white),
+                                style: TextStyle(color: textColor),
                                 decoration: InputDecoration(
                                   hintText: 'Enter your staff ID',
-                                  hintStyle: TextStyle(color: Colors.grey[600]),
+                                  hintStyle: TextStyle(color: subtitleColor),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(color: Color(0xFF30363D)),
+                                    borderSide: BorderSide(color: borderColor),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(color: Color(0xFF30363D)),
+                                    borderSide: BorderSide(color: borderColor),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                     borderSide: const BorderSide(color: Colors.green, width: 2),
                                   ),
                                   filled: true,
-                                  fillColor: const Color(0xFF21262D),
+                                  fillColor: inputFillColor,
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 ),
                                 validator: (value) {
@@ -348,7 +394,7 @@ class _LoginPageState extends State<LoginPage> {
                             Text(
                               'Email',
                               style: TextStyle(
-                                color: Colors.grey[400],
+                                color: subtitleColor,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -357,24 +403,24 @@ class _LoginPageState extends State<LoginPage> {
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(color: textColor),
                               decoration: InputDecoration(
                                 hintText: 'Enter your email',
-                                hintStyle: TextStyle(color: Colors.grey[600]),
+                                hintStyle: TextStyle(color: subtitleColor),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF30363D)),
+                                  borderSide: BorderSide(color: borderColor),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF30363D)),
+                                  borderSide: BorderSide(color: borderColor),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                   borderSide: const BorderSide(color: Colors.green, width: 2),
                                 ),
                                 filled: true,
-                                fillColor: const Color(0xFF21262D),
+                                fillColor: inputFillColor,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               ),
                               validator: (value) {
@@ -390,7 +436,7 @@ class _LoginPageState extends State<LoginPage> {
                             Text(
                               'Password',
                               style: TextStyle(
-                                color: Colors.grey[400],
+                                color: subtitleColor,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -399,31 +445,31 @@ class _LoginPageState extends State<LoginPage> {
                             TextFormField(
                               controller: _passwordController,
                               obscureText: !_isPasswordVisible,
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(color: textColor),
                               decoration: InputDecoration(
                                 hintText: 'Enter your password',
-                                hintStyle: TextStyle(color: Colors.grey[600]),
+                                hintStyle: TextStyle(color: subtitleColor),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF30363D)),
+                                  borderSide: BorderSide(color: borderColor),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF30363D)),
+                                  borderSide: BorderSide(color: borderColor),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                   borderSide: const BorderSide(color: Colors.green, width: 2),
                                 ),
                                 filled: true,
-                                fillColor: const Color(0xFF21262D),
+                                fillColor: inputFillColor,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _isPasswordVisible
                                         ? Icons.visibility_off_outlined
                                         : Icons.visibility_outlined,
-                                    color: Colors.grey[500],
+                                    color: Colors.grey[500]!,
                                     size: 20,
                                   ),
                                   onPressed: () {
@@ -450,18 +496,18 @@ class _LoginPageState extends State<LoginPage> {
                                 onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green,
-                                  foregroundColor: const Color(0xFF0D1117),
+                                  foregroundColor: isDarkMode ? const Color(0xFF0D1117) : Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   elevation: 0,
                                 ),
                                 child: _isLoading
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 24,
                                         height: 24,
                                         child: CircularProgressIndicator(
-                                          color: Color(0xFF0D1117),
+                                          color: isDarkMode ? const Color(0xFF0D1117) : Colors.white,
                                           strokeWidth: 2,
                                         ),
                                       )
@@ -498,7 +544,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ? 'Already have an account? '
                                       : "Don't have an account? ",
                                   style: TextStyle(
-                                    color: Colors.grey[500],
+                                    color: subtitleColor,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -535,10 +581,14 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 class GridBackgroundPainter extends CustomPainter {
+  final Color gridColor;
+  
+  GridBackgroundPainter({this.gridColor = const Color(0xFF30363D)});
+  
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF30363D).withOpacity(0.2)
+      ..color = gridColor
       ..strokeWidth = 1;
 
     const spacing = 40.0;
